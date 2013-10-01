@@ -14,10 +14,11 @@ function node_files_settings($setting = NULL) {
   $settings = &drupal_static(__FUNCTION__, array());
   if (empty($settings)) {
     $settings = array(
-      'token_type' => 'document',
-      'node_type' => 'document',
-      'field_name' => 'field_document_files',
-      'show_all' => TRUE,
+      'token_type'  => 'document',
+      'node_type'   => 'document',
+      'field_name'  => 'field_document_files',
+      'menu_item'   => 'documents/%node',
+      'show_all'    => TRUE,
     );
     $settings['token_tree'] = array(
       'types' => array($settings['token_type']),
@@ -46,21 +47,48 @@ function node_files_settings($setting = NULL) {
 /**
  * Implements hook_menu().
  */
-//function node_files_menu() {
-//  $items = array();
-//
-//  //$items['admin/config/system/node-files'] = array(
-//  //  'title' => 'Node Documents & Files Settings',
-//  //  'description' => 'Administer module configuration settings',
-//  //  'page callback' => 'drupal_get_form',
-//  //  'page arguments' => array('node_files_admin_settings'),
-//  //  'file' => 'includes/node_files.admin.inc',
-//  //  'access arguments' => array('administer node_files'),
-//  //  'type' => MENU_NORMAL_ITEM,
-//  //);
-//
-//  return $items;
-//}
+function node_files_menu() {
+  $items = array();
+
+  $items[node_files_settings('menu_item')] = array(
+    'page callback' => 'node_files_redirect',
+    'page arguments' => array(1),
+    'access callback' => 'node_access',
+    'access arguments' => array('view', 1),
+    'type' => MENU_CALLBACK,
+  );
+
+  //$items['admin/config/system/node-files'] = array(
+  //  'title' => 'Node Documents & Files Settings',
+  //  'description' => 'Administer module configuration settings',
+  //  'page callback' => 'drupal_get_form',
+  //  'page arguments' => array('node_files_admin_settings'),
+  //  'file' => 'includes/node_files.admin.inc',
+  //  'access arguments' => array('administer node_files'),
+  //  'type' => MENU_NORMAL_ITEM,
+  //);
+
+  return $items;
+}
+
+/**
+ * Redirect to the exact filepath of a node
+ */
+function node_files_redirect($node, $delta = 0) {
+  if (!($files = node_files_get_files($node))) {
+    return MENU_NOT_FOUND;
+  }
+  if ($delta) {
+    $delta--;
+  }
+  if (empty($files[$delta])) {
+    return MENU_NOT_FOUND;
+  }
+
+  $url = file_create_url($files[$delta]['uri']);
+  drupal_goto($url);
+  drupal_exit();
+}
 
 /**
  * Implements hook_form_alter().
@@ -114,7 +142,7 @@ function theme_node_files_form_token_tree($vars) {
     '#token_types' => $vars['token_types'],
     '#global_types' => FALSE,
   );
-  $build[] = array('#markup' => l('Add a new document', 'node/add/' . node_files_settings('node_type'), array(
+  $build[] = array('#markup' => l(t('Add a new document'), 'node/add/' . node_files_settings('node_type'), array(
     'query' => drupal_get_destination(),
   )));
   $build = array(
@@ -195,7 +223,7 @@ function node_files_token_info() {
 }
 
 /**
- * Implements hook_node_update
+ * Implements hook_node_insert().
  *
  * @param object $node
  */
@@ -204,7 +232,7 @@ function node_files_node_insert($node) {
 }
 
 /**
- * Implements hook_node_update
+ * Implements hook_node_update().
  *
  * @param object $node
  */
@@ -291,11 +319,13 @@ function node_files_tokens($type, $tokens, array $data = array(), array $options
         if (empty($value['uri'])) {
           continue;
         }
-        $url = file_create_url($value['uri']);
+        $url = node_files_settings('menu_item');
+        $url = str_replace('%node', $node->nid, $url);
         if ($key == 0) {
           $replacements['[' . $token_type . ':' . $node->nid . ']'] = $url;
         }
-        $replacements['[' . $token_type . ':' . $node->nid . '-' . ($key + 1) . ']'] = $url;
+        $delta = $key + 1;
+        $replacements['[' . $token_type . ':' . $node->nid . '-' . $delta . ']'] = $url . '/' . $delta;
       }
     }
   }
