@@ -1,0 +1,7 @@
+<?php
+/**
+ * @file
+ * Code for the Node Files Document feature.
+ */
+
+include_once 'node_files_document.features.inc';
