@@ -21,7 +21,9 @@ function node_files_settings($setting = NULL) {
       'show_all'    => TRUE,
     );
     $settings['token_tree'] = array(
+      'legend' => t('Tokens'),
       'types' => array($settings['token_type']),
+      'collapsed' => TRUE,
     );
     drupal_alter('node_files_settings', $settings);
   }
@@ -108,6 +110,8 @@ function node_files_form_alter(&$form, $form_state, $form_id) {
     $form['token_tree'] = array(
       '#theme' => 'node_files_form_token_tree',
       '#token_types' => $settings['token_tree']['types'],
+      '#legend' => $settings['token_tree']['legend'],
+      '#collapsed' => $settings['token_tree']['collapsed'],
       '#weight' => empty($form['body']['#weight']) ? -50 : $form['body']['#weight'] - .1,
     );
   }
@@ -121,6 +125,8 @@ function node_files_theme($existing, $type, $theme, $path) {
     'node_files_form_token_tree' => array(
       'variables' => array(
         'token_types' => NULL,
+        'legend' => NULL,
+        'collapsed' => TRUE,
       ),
     ),
   );
@@ -145,20 +151,26 @@ function theme_node_files_form_token_tree($vars) {
   $build[] = array('#markup' => l(t('Add a new document'), 'node/add/' . node_files_settings('node_type'), array(
     'query' => drupal_get_destination(),
   )));
+  $class = array('node-files-form-token-tree', 'collapsible');
+  if ($vars['collapsed']) {
+    $class[] = 'collapsed';
+  }
   $build = array(
-    '#id' => 'node-files-form-token-tree',
     '#attributes' => array('class' => array('node-files-form-token-tree')),
     '#type' => 'fieldset',
-    '#title' => t('Tokens'),
-    '#collapsible' => TRUE,
-    '#collapsed' => FALSE ,
+    '#title' => $vars['legend'],
+    '#attributes' => array(
+      'class' => $class,
+    ),
     '#attached' => array(
+      'library' => array('system', 'drupal.collapse'),
       'css' => array(
         drupal_get_path('module', 'node_files') . '/node_files.css',
       ),
     ),
     $build,
   );
+
   //@todo fieldset does not appear collapsible in form; fix
   $output = drupal_render($build);
 
@@ -200,8 +212,19 @@ function node_files_token_info() {
       if (count($files) > 1) {
         for ($i = 1; $i <= count($files); ++$i) {
           $t_vars['@index'] = $i;
+          $name = t('<a href="!url">@title #@index</a>', $t_vars);
+          if ($i === 1) {
+            $info['tokens'][$token_type][$nid] = array(
+              'name' => $name,
+              'description' => t('File #@index URL: @description', $t_vars),
+            );
+          }
+          if (isset($files[$i - 1]['description'])) {
+            $t_vars['@description'] = $files[$i - 1]['description'];
+            $name = t('<a href="!url">@description</a>', $t_vars);
+          }
           $info['tokens'][$token_type][$nid . '-' . $i] = array(
-            'name' => t('<a href="!url">@title #@index</a>', $t_vars),
+            'name' => $name,
             'description' => t('File #@index URL: @description', $t_vars),
           );
         }
